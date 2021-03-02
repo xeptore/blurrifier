@@ -5,7 +5,8 @@
     "log.h": "c",
     "*.tcc": "c",
     "cmath": "c",
-    "stdlib.h": "c"
+    "stdlib.h": "c",
+    "tuple": "c"
   },
   "C_Cpp.intelliSenseEngine": "Default",
   "C_Cpp.clang_format_sortIncludes": false,
