@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <jpeglib.h>
+#include <math.h>
+#include "config.h"
 
 const uint8_t INPUT_IMAGE_COMPONENTS_NUMBER = 3u;
-const uint8_t KERNEL_RADIUS = 2u; /* generates 5x5 kernel window */
 const uint8_t KERNEL_WIDTH = KERNEL_RADIUS * 2 + 1;
 const uint8_t KERNEL_HEIGHT = KERNEL_WIDTH;
 
@@ -44,13 +45,43 @@ void set_compressor_options(
   jpeg_start_compress(compressor, TRUE);
 }
 
-struct components {
-  float red;
-  float green;
-  float blue;
+struct pixel_components {
+  double red;
+  double green;
+  double blue;
 };
 
-int transform(const char *input_filename, const char *output_filename) {
+struct kernel_wrapper {
+  double kernel[KERNEL_HEIGHT][KERNEL_WIDTH];
+};
+
+double gaussian(const double x, const double mu, const double sigma) {
+  const double a = (x - mu) / sigma;
+  return exp((a * a)/2.f);
+}
+
+struct kernel_wrapper produce_kernel(const uint8_t kernel_radius) {
+  const double sigma = kernel_radius / 2.f;
+  struct kernel_wrapper output;
+
+  double kernel_row[KERNEL_HEIGHT];
+  for (size_t i = 0; i < KERNEL_HEIGHT; i++) {
+    kernel_row[i] = gaussian(i, kernel_radius, sigma);
+  }
+
+  for (size_t i = 0; i < KERNEL_HEIGHT; i++)
+    for (size_t j = 0; j < KERNEL_WIDTH; j++) {
+      output.kernel[i][j] = kernel_row[i] * kernel_row[j];
+    }
+
+  return output;
+}
+
+int transform(
+  const char *input_filename,
+  const char *output_filename,
+  const double kernel[KERNEL_HEIGHT][KERNEL_WIDTH]
+) {
   FILE *input_file = fopen(input_filename, "rb");
   if (!input_file) {
     fprintf(stderr, "🛑🙁 error opening input jpeg file '%s': %s 🙁🛑\n", input_filename, strerror(errno));
@@ -75,13 +106,6 @@ int transform(const char *input_filename, const char *output_filename) {
   set_compressor_options(&compressor, &decompressor, &error_manager, output_file);
 
   unsigned char *frame_free_space = malloc(KERNEL_HEIGHT * IMAGE_WIDTH * INPUT_IMAGE_COMPONENTS_NUMBER);
-  const unsigned char kernel[5][5] = {
-    { 1u, 2u, 4u, 2u, 1u },
-    { 2u, 3u, 5u, 3u, 2u },
-    { 4u, 5u, 6u, 5u, 4u },
-    { 2u, 3u, 5u, 3u, 2u },
-    { 1u, 2u, 4u, 2u, 1u },
-  };
 
   JSAMPROW output_image_row_samples[] = { malloc(IMAGE_WIDTH * INPUT_IMAGE_COMPONENTS_NUMBER) };
 
@@ -101,12 +125,12 @@ int transform(const char *input_filename, const char *output_filename) {
     jpeg_read_scanlines(&decompressor, &image_buffer[i + KERNEL_RADIUS], 1);
 
     for (size_t j = 0; j < KERNEL_RADIUS; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = KERNEL_RADIUS - i; ki < KERNEL_HEIGHT; ki++) {
         for (size_t kj = KERNEL_RADIUS - j; kj < KERNEL_WIDTH; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -118,18 +142,18 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     for (size_t j = KERNEL_RADIUS; j < IN_FRAME_WIDTH; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = KERNEL_RADIUS - i; ki < KERNEL_HEIGHT; ki++) {
         for (size_t kj = 0; kj < KERNEL_WIDTH; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -141,18 +165,18 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     for (size_t j = IN_FRAME_WIDTH; j < IMAGE_WIDTH; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = KERNEL_RADIUS - i; ki < KERNEL_HEIGHT; ki++) {
         for (size_t kj = 0; kj < KERNEL_RADIUS + IMAGE_WIDTH - j; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -164,9 +188,9 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     jpeg_write_scanlines(&compressor, output_image_row_samples, 1);
@@ -176,12 +200,12 @@ int transform(const char *input_filename, const char *output_filename) {
     jpeg_read_scanlines(&decompressor, &image_buffer[(i + KERNEL_RADIUS) % KERNEL_HEIGHT], 1);
 
     for (size_t j = 0; j < KERNEL_RADIUS; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = 0; ki < KERNEL_HEIGHT; ki++) {
         for (size_t kj = KERNEL_RADIUS - j; kj < KERNEL_WIDTH; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -193,18 +217,18 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     for (size_t j = KERNEL_RADIUS; j < IN_FRAME_WIDTH; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = 0; ki < KERNEL_HEIGHT; ki++) {
         for (size_t kj = 0; kj < KERNEL_WIDTH; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -216,18 +240,18 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     for (size_t j = IN_FRAME_WIDTH; j < IMAGE_WIDTH; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = 0; ki < KERNEL_HEIGHT; ki++) {
         for (size_t kj = 0; kj < KERNEL_RADIUS + IMAGE_WIDTH - j; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -239,9 +263,9 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     jpeg_write_scanlines(&compressor, output_image_row_samples, 1);
@@ -249,12 +273,12 @@ int transform(const char *input_filename, const char *output_filename) {
 
   for (size_t i = IN_FRAME_HEIGHT; i < IMAGE_HEIGHT; i++) {
     for (size_t j = 0; j < KERNEL_RADIUS; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = 0; ki < KERNEL_RADIUS + IMAGE_HEIGHT - i; ki++) {
         for (size_t kj = KERNEL_RADIUS - j; kj < KERNEL_WIDTH; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -266,18 +290,18 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     for (size_t j = KERNEL_RADIUS; j < IN_FRAME_WIDTH; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = 0; ki < KERNEL_RADIUS + IMAGE_HEIGHT - i; ki++) {
         for (size_t kj = 0; kj < KERNEL_WIDTH; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -289,18 +313,18 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     for (size_t j = IN_FRAME_WIDTH; j < IMAGE_WIDTH; j++) {
-      struct components multiplication_sum = {
+      struct pixel_components multiplication_sum = {
         .red = 0.f,
         .green = 0.f,
         .blue = 0.f,
       };
-      unsigned short int kernel_sum = 0u;
+      double kernel_sum = 0.f;
       for (size_t ki = 0; ki < KERNEL_RADIUS + IMAGE_HEIGHT - i; ki++) {
         for (size_t kj = 0; kj < KERNEL_RADIUS + IMAGE_WIDTH - j; kj++) {
           kernel_sum += kernel[ki][kj];
@@ -312,9 +336,9 @@ int transform(const char *input_filename, const char *output_filename) {
           multiplication_sum.blue += blue * kernel[ki][kj];
         }
       }
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = multiplication_sum.red / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = multiplication_sum.green / kernel_sum;
-      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = multiplication_sum.blue / kernel_sum;
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(multiplication_sum.red / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(multiplication_sum.green / kernel_sum);
+      output_image_row_samples[0][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(multiplication_sum.blue / kernel_sum);
     }
 
     jpeg_write_scanlines(&compressor, output_image_row_samples, 1);
@@ -333,7 +357,9 @@ int transform(const char *input_filename, const char *output_filename) {
 }
 
 int main() {
-  const char *infilename = "image.jpg";
-  const char *outfilename = "image-blurred.jpg";
-  return transform(infilename, outfilename);
+  return transform(
+    INPUT_FILENAME,
+    OUTPUT_FILENAME,
+    produce_kernel(KERNEL_RADIUS).kernel
+  );
 }
