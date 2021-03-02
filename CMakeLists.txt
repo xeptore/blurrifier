@@ -8,4 +8,4 @@ project(blurify-jpeg VERSION 0.1.0)
 
 add_executable(blurify-jpeg main.c)
 
-target_link_libraries (blurify-jpeg jpeg)
+target_link_libraries (blurify-jpeg jpeg m)
