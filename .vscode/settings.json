@@ -1,0 +1,14 @@
+{
+  "files.associations": {
+    "*.in": "cpp",
+    "config.h": "c",
+    "log.h": "c",
+    "*.tcc": "c",
+    "cmath": "c",
+    "stdlib.h": "c"
+  },
+  "C_Cpp.intelliSenseEngine": "Default",
+  "C_Cpp.clang_format_sortIncludes": false,
+  "cmake.buildTask": true,
+  "cmake.generator": "Unix Makefiles"
+}
