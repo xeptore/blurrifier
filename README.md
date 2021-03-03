@@ -8,9 +8,28 @@ Educational-purpose image blurifier.
 2. Execute the binary (blurifier-jpeg). It will generate a _image-blurred.jpg_ file.
 3. You're done!
 
+## Configuration
+
+You can change the default configuration parameters in `config.h`.
+
+Each one is defined as following:
+
+```c
+// Results in a ((2 * KERNEL_RADIUS + 1) * (2 * KERNEL_RADIUS + 1)) kernel window
+const uint8_t KERNEL_RADIUS = 5u;
+
+// Input image file name. You can set file path, too.
+// Remember the basics!
+const char *INPUT_FILENAME = "image.jpg";
+
+// Output image file name. You can set file path, too.
+// Remember the basics!
+const char *OUTPUT_FILENAME = "image-blurred-mean-5.jpg";
+```
+
 ## Limitations
 
-Currently only jpeg images are supported using `libjpeg`. So, it inherits the limitations of `libjpeg`.
+Currently only RGB-colored jpeg input/output images are supported using `libjpeg`. So, it inherits the limitations of `libjpeg`.
 
 ## Development
 
