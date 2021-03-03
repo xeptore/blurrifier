@@ -56,22 +56,39 @@ struct kernel_wrapper {
 };
 
 double gaussian(const double x, const double mu, const double sigma) {
-  const double a = (x - mu) / sigma;
-  return exp((a * a)/2.f);
+  /**
+   * It is ugly, I know!
+   * But it's math, and math is ugly :D
+   * The formula comes from here: https://en.wikipedia.org/wiki/Gaussian_function.
+   */
+  return exp(-(pow((x - mu) / sigma, 2) / 2.f));
 }
 
-struct kernel_wrapper produce_kernel(const uint8_t kernel_radius) {
-  const double sigma = kernel_radius / 2.f;
+struct kernel_wrapper produce_gaussian_kernel(void) {
+  const double sigma = KERNEL_RADIUS / 2.f;
   struct kernel_wrapper output;
 
-  double kernel_row[KERNEL_HEIGHT];
-  for (size_t i = 0; i < KERNEL_HEIGHT; i++) {
-    kernel_row[i] = gaussian(i, kernel_radius, sigma);
+  double kernel_row[KERNEL_WIDTH];
+  for (size_t i = 0; i < KERNEL_WIDTH; i++) {
+    kernel_row[i] = gaussian(i, KERNEL_RADIUS, sigma);
   }
+
+  for (size_t i = 0; i < KERNEL_HEIGHT; i++) {
+    for (size_t j = 0; j < KERNEL_WIDTH; j++) {
+      const double v = kernel_row[i] * kernel_row[j];
+      output.kernel[i][j] = v;
+    }
+  }
+
+  return output;
+}
+
+struct kernel_wrapper produce_mean_kernel(void) {
+  struct kernel_wrapper output;
 
   for (size_t i = 0; i < KERNEL_HEIGHT; i++)
     for (size_t j = 0; j < KERNEL_WIDTH; j++) {
-      output.kernel[i][j] = kernel_row[i] * kernel_row[j];
+      output.kernel[i][j] = 1.f;
     }
 
   return output;
@@ -360,6 +377,6 @@ int main() {
   return transform(
     INPUT_FILENAME,
     OUTPUT_FILENAME,
-    produce_kernel(KERNEL_RADIUS).kernel
+    produce_mean_kernel().kernel
   );
 }
