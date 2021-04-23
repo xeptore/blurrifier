@@ -3,6 +3,6 @@ const uint8_t KERNEL_RADIUS = 20U;
 
 const unsigned short int NUM_THREADS = 1U;
 
-const char *INPUT_FILENAME = "images/pcwallpapersgirls3k815.jpg";
+const char *INPUT_IMAGE_FILENAME = "images/pcwallpapersgirls3k815.jpg";
 
-const char *OUTPUT_FILENAME = "images/01-blurred-gaussian-20.jpg";
+const char *OUTPUT_IMAGE_FILENAME = "images/01-blurred-gaussian-20.jpg";

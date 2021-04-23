@@ -253,8 +253,8 @@ int transform(
 
 int main() {
   return transform(
-    INPUT_FILENAME,
-    OUTPUT_FILENAME,
+    INPUT_IMAGE_FILENAME,
+    OUTPUT_IMAGE_FILENAME,
     produce_gaussian_kernel().kernel
   );
 }
