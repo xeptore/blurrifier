@@ -8,4 +8,4 @@ project(blurifier VERSION 0.1.0)
 
 add_executable(blurifier main.c)
 
-target_link_libraries (blurifier jpeg m)
+target_link_libraries (blurifier jpeg m pthread)

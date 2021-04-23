@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <jpeglib.h>
 #include <math.h>
+#include <pthread.h>
 #include "config.h"
 
 const uint8_t INPUT_IMAGE_COMPONENTS_NUMBER = 3u;
@@ -94,6 +95,58 @@ struct kernel_wrapper produce_mean_kernel(void) {
   return output;
 }
 
+struct transform_row_params {
+  unsigned short IMAGE_WIDTH;
+  unsigned short IMAGE_HEIGHT;
+  JSAMPARRAY input_image;
+  JSAMPARRAY output_image;
+  double kernel[KERNEL_HEIGHT][KERNEL_WIDTH];
+  unsigned short start_row;
+  unsigned short num_rows;
+};
+
+void copy_kernel(double destination[KERNEL_HEIGHT][KERNEL_WIDTH], const double source[KERNEL_HEIGHT][KERNEL_WIDTH]) {
+  for (size_t i = 0; i < KERNEL_HEIGHT; i++) {
+    for (size_t j = 0; j < KERNEL_WIDTH; j++) {
+      destination[i][j] = source[i][j];
+    }
+  };
+}
+
+void *transform_rows(void *serialized_params) {
+  struct transform_row_params *params = (struct transform_row_params *)serialized_params;
+  for (size_t i = params->start_row; i < params->num_rows; i++) {
+    for (size_t j = 0; j < params->IMAGE_WIDTH; j++) {
+      struct pixel_components components_multiplication_sum = {
+        .red = 0.f,
+        .green = 0.f,
+        .blue = 0.f,
+      };
+      double kernel_cells_sum = 0.f;
+      const size_t ki_start = i > KERNEL_RADIUS ? 0 : KERNEL_RADIUS - i;
+      const size_t ki_end = i > params->start_row + params->num_rows - KERNEL_RADIUS ? params->start_row + params->num_rows - i + KERNEL_RADIUS : KERNEL_HEIGHT;
+      const size_t kj_start = j > KERNEL_RADIUS ? 0 : KERNEL_RADIUS - j;
+      const size_t kj_end = j > params->IMAGE_WIDTH - KERNEL_RADIUS ? params->IMAGE_WIDTH - j + KERNEL_RADIUS : KERNEL_WIDTH;
+      for (size_t ki = ki_start; ki < ki_end; ki++) {
+        for (size_t kj = kj_start; kj < kj_end; kj++) {
+          kernel_cells_sum += params->kernel[ki][kj];
+          const uint16_t red = params->input_image[i + ki - KERNEL_RADIUS][(j + kj - KERNEL_RADIUS) * INPUT_IMAGE_COMPONENTS_NUMBER + 0];
+          const uint16_t green = params->input_image[i + ki - KERNEL_RADIUS][(j + kj - KERNEL_RADIUS) * INPUT_IMAGE_COMPONENTS_NUMBER + 1];
+          const uint16_t blue = params->input_image[i + ki - KERNEL_RADIUS][(j + kj - KERNEL_RADIUS) * INPUT_IMAGE_COMPONENTS_NUMBER + 2];
+          components_multiplication_sum.red += red * params->kernel[ki][kj];
+          components_multiplication_sum.green += green * params->kernel[ki][kj];
+          components_multiplication_sum.blue += blue * params->kernel[ki][kj];
+        }
+      }
+      params->output_image[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(components_multiplication_sum.red / kernel_cells_sum);
+      params->output_image[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(components_multiplication_sum.green / kernel_cells_sum);
+      params->output_image[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(components_multiplication_sum.blue / kernel_cells_sum);
+    }
+  }
+
+  return NULL;
+}
+
 int transform(
   const char *input_filename,
   const char *output_filename,
@@ -116,8 +169,8 @@ int transform(
   struct jpeg_decompress_struct decompressor;
   set_decompressor_options(&decompressor, &error_manager, input_file);
 
-  const unsigned long int IMAGE_WIDTH = decompressor.image_width;
-  const unsigned long int IMAGE_HEIGHT = decompressor.image_height;
+  const unsigned short IMAGE_WIDTH = decompressor.image_width;
+  const unsigned short IMAGE_HEIGHT = decompressor.image_height;
 
   struct jpeg_compress_struct compressor;
   set_compressor_options(&compressor, &decompressor, &error_manager, output_file);
@@ -143,33 +196,27 @@ int transform(
     );
   }
 
-  for (size_t i = 0; i < IMAGE_HEIGHT; i++) {
-    for (size_t j = 0; j < IMAGE_WIDTH; j++) {
-      struct pixel_components components_multiplication_sum = {
-        .red = 0.f,
-        .green = 0.f,
-        .blue = 0.f,
-      };
-      double kernel_cells_sum = 0.f;
-      const size_t ki_start = i > KERNEL_RADIUS ? 0 : KERNEL_RADIUS - i;
-      const size_t ki_end = i > IMAGE_HEIGHT - KERNEL_RADIUS ? IMAGE_HEIGHT - i + KERNEL_RADIUS : KERNEL_HEIGHT;
-      const size_t kj_start = j > KERNEL_RADIUS ? 0 : KERNEL_RADIUS - j;
-      const size_t kj_end = j > IMAGE_WIDTH - KERNEL_RADIUS ? IMAGE_WIDTH - j + KERNEL_RADIUS : KERNEL_WIDTH;
-      for (size_t ki = ki_start; ki < ki_end; ki++) {
-        for (size_t kj = kj_start; kj < kj_end; kj++) {
-          kernel_cells_sum += kernel[ki][kj];
-          const uint16_t red = read_buffer[i + ki - KERNEL_RADIUS][(j + kj - KERNEL_RADIUS) * INPUT_IMAGE_COMPONENTS_NUMBER + 0];
-          const uint16_t green = read_buffer[i + ki - KERNEL_RADIUS][(j + kj - KERNEL_RADIUS) * INPUT_IMAGE_COMPONENTS_NUMBER + 1];
-          const uint16_t blue = read_buffer[i + ki - KERNEL_RADIUS][(j + kj - KERNEL_RADIUS) * INPUT_IMAGE_COMPONENTS_NUMBER + 2];
-          components_multiplication_sum.red += red * kernel[ki][kj];
-          components_multiplication_sum.green += green * kernel[ki][kj];
-          components_multiplication_sum.blue += blue * kernel[ki][kj];
-        }
-      }
-      write_buffer[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 0] = round(components_multiplication_sum.red / kernel_cells_sum);
-      write_buffer[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 1] = round(components_multiplication_sum.green / kernel_cells_sum);
-      write_buffer[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(components_multiplication_sum.blue / kernel_cells_sum);
-    }
+  pthread_t thread_ids[NUM_THREADS];
+  struct transform_row_params *thread_params_refs[NUM_THREADS];
+
+  const unsigned int quotient = decompressor.image_height / NUM_THREADS;
+  const unsigned int remainder = decompressor.image_height % NUM_THREADS;
+
+  for (size_t i = 0; i < NUM_THREADS; i++) {
+    const unsigned long int worker_quotient = (i < remainder) ? (quotient + 1) : (quotient);
+    struct transform_row_params *params = (struct transform_row_params *)malloc(sizeof(struct transform_row_params));
+    params->input_image = read_buffer;
+    params->output_image = write_buffer;
+    copy_kernel(params->kernel, kernel);
+    params->IMAGE_HEIGHT = IMAGE_HEIGHT;
+    params->IMAGE_WIDTH = IMAGE_WIDTH;
+    params->num_rows = worker_quotient;
+    thread_params_refs[i] = params;
+    (void)pthread_create(&thread_ids[i], NULL, transform_rows, thread_params_refs[i]);
+  }
+
+  for (size_t i = 0; i < NUM_THREADS; i++) {
+    (void)pthread_join(thread_ids[i], NULL);
   }
 
   while (compressor.next_scanline < compressor.image_height) {
