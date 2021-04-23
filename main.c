@@ -115,7 +115,7 @@ void copy_kernel(double destination[KERNEL_HEIGHT][KERNEL_WIDTH], const double s
 
 void *transform_rows(void *serialized_params) {
   struct transform_row_params *params = (struct transform_row_params *)serialized_params;
-  for (size_t i = params->start_row; i < params->num_rows; i++) {
+  for (size_t i = params->start_row; i < params->start_row + params->num_rows; i++) {
     for (size_t j = 0; j < params->IMAGE_WIDTH; j++) {
       struct pixel_components components_multiplication_sum = {
         .red = 0.f,
@@ -124,7 +124,7 @@ void *transform_rows(void *serialized_params) {
       };
       double kernel_cells_sum = 0.f;
       const size_t ki_start = i > KERNEL_RADIUS ? 0 : KERNEL_RADIUS - i;
-      const size_t ki_end = i > params->start_row + params->num_rows - KERNEL_RADIUS ? params->start_row + params->num_rows - i + KERNEL_RADIUS : KERNEL_HEIGHT;
+      const size_t ki_end = i > params->IMAGE_HEIGHT - KERNEL_RADIUS ? params->IMAGE_HEIGHT - i + KERNEL_RADIUS : KERNEL_HEIGHT;
       const size_t kj_start = j > KERNEL_RADIUS ? 0 : KERNEL_RADIUS - j;
       const size_t kj_end = j > params->IMAGE_WIDTH - KERNEL_RADIUS ? params->IMAGE_WIDTH - j + KERNEL_RADIUS : KERNEL_WIDTH;
       for (size_t ki = ki_start; ki < ki_end; ki++) {
