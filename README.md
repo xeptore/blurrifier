@@ -33,4 +33,4 @@ Currently only RGB-colored jpeg input/output images are supported using `libjpeg
 
 ## Development
 
-You'll need CMake and a C compiler. I used CMake version `3.19.6` and clang version `11.1.0`. If you want to use another compiler, set its path in `CMakeLists.txt` file (`CMAKE_C_COMPILER` configuration variable).
+You'll need CMake and a C compiler. I used CMake version `3.20.1` and clang version `11.1.0`. If you want to use another compiler, set its path in `CMakeLists.txt` file (`CMAKE_C_COMPILER` configuration variable).
