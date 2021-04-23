@@ -4,8 +4,8 @@ set(CMAKE_C_COMPILER /usr/bin/clang)
 set(CMAKE_CXX_COMPILER /usr/bin/clang++)
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
-project(blurifier VERSION 0.1.0)
+project(blurrifier VERSION 0.1.0)
 
-add_executable(blurifier main.c)
+add_executable(blurrifier main.c)
 
-target_link_libraries (blurifier jpeg m pthread)
+target_link_libraries (blurrifier jpeg m pthread)

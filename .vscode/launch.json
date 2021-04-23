@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "blurifier",
+      "name": "blurrifier",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceRoot}/build/blurifier",
+      "program": "${workspaceRoot}/build/blurrifier",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

@@ -1,6 +1,6 @@
-# blurifier
+# blurrifier
 
-Educational-purpose multi-threaded image blurifier.
+Educational-purpose multi-threaded image blurrifier.
 
 Currently, only jpeg images are supported using `libjpeg`.
 
@@ -29,7 +29,7 @@ Currently, only jpeg images are supported using `libjpeg`.
 3. Run
 
    ```sh
-   ./build/blurifier
+   ./build/blurrifier
    ```
 
 ## Development
