@@ -154,13 +154,23 @@ int transform(
 ) {
   FILE *input_file = fopen(input_filename, "rb");
   if (!input_file) {
-    fprintf(stderr, "🛑🙁 error opening input jpeg file '%s': %s 🙁🛑\n", input_filename, strerror(errno));
+    (void)fprintf(
+      stderr,
+      "🛑🙁 error opening input jpeg file '%s': %s 🙁🛑\n",
+      input_filename,
+      strerror(errno)
+    );
     return errno;
   }
 
   FILE *output_file = fopen(output_filename, "wb");
   if (!output_file) {
-    fprintf(stderr, "🛑🙁 error opening output jpeg file '%s': %s 🙁🛑\n", output_filename, strerror(errno));
+    (void)fprintf(
+      stderr,
+      "🛑🙁 error opening output jpeg file '%s': %s 🙁🛑\n",
+      output_filename,
+      strerror(errno)
+    );
     return errno;
   }
 
@@ -220,14 +230,14 @@ int transform(
   }
 
   while (compressor.next_scanline < compressor.image_height) {
-    const JDIMENSION written = jpeg_write_scanlines(
+    (void)jpeg_write_scanlines(
       &compressor,
       &write_buffer[compressor.next_scanline],
       compressor.image_height - compressor.next_scanline
     );
   }
 
-  jpeg_finish_decompress(&decompressor);
+  (void)jpeg_finish_decompress(&decompressor);
   jpeg_finish_compress(&compressor);
   jpeg_destroy_decompress(&decompressor);
   jpeg_destroy_compress(&compressor);
