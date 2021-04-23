@@ -5,7 +5,7 @@ Educational-purpose image blurifier.
 ## Usage
 
 1. Provider a jpeg file named _image.jpg_ in your current working directory.
-2. Execute the binary (blurifier-jpeg). It will generate a _image-blurred.jpg_ file.
+2. Execute the binary (blurifier). It will generate a _image-blurred.jpg_ file.
 3. You're done!
 
 ## Configuration
