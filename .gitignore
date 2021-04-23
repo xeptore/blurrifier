@@ -11,4 +11,8 @@ CTestTestfile.cmake
 _deps
 
 # build directory
-build
+/build/
+
+# images directory
+/images/
+
