@@ -187,7 +187,7 @@ int transform(
 
   const unsigned long IMAGE_SIZE_IN_BYTES = IMAGE_HEIGHT * IMAGE_WIDTH * INPUT_IMAGE_COMPONENTS_NUMBER;
 
-  unsigned char *buffer = malloc(2 * IMAGE_SIZE_IN_BYTES);
+  unsigned char *buffer = malloc(2 * IMAGE_SIZE_IN_BYTES + NUM_THREADS * sizeof(struct transform_row_params));
   JSAMPROW write_buffer[IMAGE_HEIGHT];
   for (size_t i = 0; i < IMAGE_HEIGHT; i++) {
     write_buffer[i] = &buffer[i * IMAGE_WIDTH * INPUT_IMAGE_COMPONENTS_NUMBER];
@@ -212,17 +212,20 @@ int transform(
   const unsigned int quotient = decompressor.image_height / NUM_THREADS;
   const unsigned int remainder = decompressor.image_height % NUM_THREADS;
 
+  unsigned long total_assigned_rows = 0U;
   for (size_t i = 0; i < NUM_THREADS; i++) {
     const unsigned long int worker_quotient = (i < remainder) ? (quotient + 1) : (quotient);
-    struct transform_row_params *params = (struct transform_row_params *)malloc(sizeof(struct transform_row_params));
+    struct transform_row_params *params = (struct transform_row_params *)&buffer[2 * IMAGE_SIZE_IN_BYTES + i * sizeof(struct transform_row_params)];
     params->input_image = read_buffer;
     params->output_image = write_buffer;
     copy_kernel(params->kernel, kernel);
     params->IMAGE_HEIGHT = IMAGE_HEIGHT;
     params->IMAGE_WIDTH = IMAGE_WIDTH;
     params->num_rows = worker_quotient;
+    params->start_row = total_assigned_rows;
     thread_params_refs[i] = params;
     (void)pthread_create(&thread_ids[i], NULL, transform_rows, thread_params_refs[i]);
+    total_assigned_rows += worker_quotient;
   }
 
   for (size_t i = 0; i < NUM_THREADS; i++) {
