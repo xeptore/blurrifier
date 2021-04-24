@@ -117,10 +117,6 @@ void copy_kernel(double destination[KERNEL_HEIGHT][KERNEL_WIDTH], const double s
 void *transform_rows(void *serialized_params) {
   struct transform_row_params *params = (struct transform_row_params *)serialized_params;
 
-  struct timespec start, end;
-
-  timespec_get(&start, TIME_UTC);
-
   for (size_t i = params->start_row; i < params->start_row + params->num_rows; i++) {
     for (size_t j = 0; j < params->IMAGE_WIDTH; j++) {
       struct pixel_components components_multiplication_sum = {
@@ -150,11 +146,7 @@ void *transform_rows(void *serialized_params) {
     }
   }
 
-  timespec_get(&end, TIME_UTC);
-
-  unsigned long int time_in_nano_seconds = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-
-  return (void *)time_in_nano_seconds;
+  return NULL;
 }
 
 int transform(
@@ -234,18 +226,25 @@ int transform(
     params->num_rows = worker_quotient;
     params->start_row = total_assigned_rows;
     thread_params_refs[i] = params;
-    (void)pthread_create(&thread_ids[i], NULL, transform_rows, thread_params_refs[i]);
     total_assigned_rows += worker_quotient;
   }
 
-  unsigned long int thread_process_times[NUM_THREADS];
+  struct timespec start, end;
+
+  timespec_get(&start, TIME_UTC);
+
   for (size_t i = 0; i < NUM_THREADS; i++) {
-    (void)pthread_join(thread_ids[i], (void *)&thread_process_times[i]);
+    (void)pthread_create(&thread_ids[i], NULL, transform_rows, thread_params_refs[i]);
   }
 
   for (size_t i = 0; i < NUM_THREADS; i++) {
-    printf("thread[%zu]: %luns\n", i, thread_process_times[i]);
+    (void)pthread_join(thread_ids[i], NULL);
   }
+
+  timespec_get(&end, TIME_UTC);
+
+  unsigned long int time_in_nano_seconds = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+  printf("total:%lu\n", time_in_nano_seconds);
 
   while (compressor.next_scanline < compressor.image_height) {
     (void)jpeg_write_scanlines(
