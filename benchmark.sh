@@ -27,6 +27,7 @@ do
     do
       TIME=$(./build/blurrifier | sed s/total://);
       echo "${worker}:${TIME}:${kernel_radius}" >> "$FILENAME";
+      echo -n "$i ($TIME) ";
     done;
   done;
   echo "  > # workers: $worker Done.";
@@ -59,6 +60,7 @@ do
     do
       TIME=$(./build/blurrifier | sed s/total://);
       echo "${worker}:${TIME}:${image_ratio}" >> "$FILENAME";
+      echo -n "$i ($TIME) ";
     done;
   done;
   echo "  > # workers: $worker Done.";
