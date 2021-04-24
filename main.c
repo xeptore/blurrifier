@@ -244,7 +244,7 @@ int transform(
   timespec_get(&end, TIME_UTC);
 
   unsigned long int time_in_nano_seconds = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-  printf("total:%lu\n", time_in_nano_seconds);
+  printf("total:%lu", time_in_nano_seconds);
 
   while (compressor.next_scanline < compressor.image_height) {
     (void)jpeg_write_scanlines(
