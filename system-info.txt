@@ -1,0 +1,31 @@
+System:    Host: ubuntu-32gb-nbg1-1 Kernel: 5.4.0-72-generic x86_64 bits: 64 compiler: gcc v: 9.3.0 Console: N/A dm: N/A 
+           Distro: Ubuntu 20.04.2 LTS (Focal Fossa) 
+Machine:   Type: Kvm System: Hetzner product: vServer v: 20171111 serial: 11092102 Chassis: QEMU type: 1 serial: N/A 
+           Mobo: N/A model: N/A serial: N/A BIOS: Hetzner v: 20171111 date: 11/11/2017 
+Memory:    RAM: total: 30.62 GiB used: 454.1 MiB (1.4%) 
+           Array-1: capacity: 32 GiB note: est. slots: 2 EC: Multi-bit ECC max module size: 16 GiB note: est. 
+           Device-1: DIMM 0 size: 16 GiB speed: Unknown type: RAM detail: other bus width: Unknown total: Unknown 
+           manufacturer: QEMU part-no: Not Specified serial: Not Specified 
+           Device-2: DIMM 1 size: 15.25 GiB speed: Unknown type: RAM detail: other bus width: Unknown total: Unknown 
+           manufacturer: QEMU part-no: Not Specified serial: Not Specified 
+CPU:       Topology: 16-Core (4-Die) model: AMD EPYC (with IBPB) bits: 64 type: MCP MCM arch: Zen rev: 2 L2 cache: 8192 KiB 
+           flags: avx avx2 lm nx pae sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 bogomips: 79849 
+           Speed: 2495 MHz min/max: N/A Core speeds (MHz): 1: 2495 2: 2495 3: 2495 4: 2495 5: 2495 6: 2495 7: 2495 8: 2495 
+           9: 2495 10: 2495 11: 2495 12: 2495 13: 2495 14: 2495 15: 2495 16: 2495 
+Graphics:  Device-1: Red Hat Virtio GPU driver: virtio-pci v: 1 bus ID: 00:01.0 chip ID: 1af4:1050 
+           Display: server: No display server data found. Headless machine? tty: 213x50 
+           Message: Advanced graphics data unavailable in console for root. 
+Audio:     Message: No Device data found. 
+Network:   Device-1: Red Hat Virtio network driver: virtio-pci v: 1 port: 0700 bus ID: 01:00.0 chip ID: 1af4:1041 
+           Device-2: Red Hat Virtio network driver: virtio-pci v: 1 port: 0700 bus ID: 07:00.0 chip ID: 1af4:1041 
+           IF-ID-1: enp7s0 state: up speed: -1 duplex: unknown mac: 86:00:00:a7:7a:9d 
+           IF-ID-2: eth0 state: up speed: -1 duplex: unknown mac: 96:00:00:a7:7a:9b 
+           IF-ID-3: wg0 state: unknown speed: N/A duplex: N/A mac: N/A 
+Drives:    Local Storage: total: 423.32 GiB used: 29.31 GiB (6.9%) 
+           ID-1: /dev/sda vendor: QEMU model: HARDDISK size: 343.32 GiB speed: <unknown> serial: drive-scsi0-0-0-0 rev: 2.5+ 
+           scheme: GPT 
+           ID-2: /dev/sdb model: 0HC Volume size: 80.00 GiB speed: <unknown> serial: 10430789 rev: 2.5+ 
+Partition: ID-1: / size: 337.82 GiB used: 29.25 GiB (8.7%) fs: ext4 dev: /dev/sda1 
+Sensors:   Message: No sensors data was found. Is sensors configured? 
+Info:      Processes: 263 Uptime: 1d 21h 53m Init: systemd v: 245 runlevel: 5 Compilers: gcc: 9.3.0 alt: 9 
+           clang: 10.0.0-4ubuntu1 Shell: bash (sudo) v: 5.0.17 inxi: 3.0.38 
