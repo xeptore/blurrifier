@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <jpeglib.h>
+#include <omp.h>
 #include <math.h>
 #include <pthread.h>
 #include <sys/time.h>
@@ -114,9 +115,7 @@ void copy_kernel(double destination[KERNEL_HEIGHT][KERNEL_WIDTH], const double s
   };
 }
 
-void *transform_rows(void *serialized_params) {
-  struct transform_row_params *params = (struct transform_row_params *)serialized_params;
-
+void transform_rows(struct transform_row_params *params) {
   for (size_t i = params->start_row; i < params->start_row + params->num_rows; i++) {
     for (size_t j = 0; j < params->IMAGE_WIDTH; j++) {
       struct pixel_components components_multiplication_sum = {
@@ -145,8 +144,6 @@ void *transform_rows(void *serialized_params) {
       params->output_image[i][INPUT_IMAGE_COMPONENTS_NUMBER * j + 2] = round(components_multiplication_sum.blue / kernel_cells_sum);
     }
   }
-
-  return NULL;
 }
 
 int transform(
@@ -215,6 +212,12 @@ int transform(
   const unsigned int remainder = decompressor.image_height % NUM_THREADS;
 
   unsigned long total_assigned_rows = 0U;
+
+  struct timespec start, end;
+
+  timespec_get(&start, TIME_UTC);
+
+  #pragma omp parallel for
   for (size_t i = 0; i < NUM_THREADS; i++) {
     const unsigned long int worker_quotient = (i < remainder) ? (quotient + 1) : (quotient);
     struct transform_row_params *params = (struct transform_row_params *)&buffer[2 * IMAGE_SIZE_IN_BYTES + i * sizeof(struct transform_row_params)];
@@ -225,20 +228,8 @@ int transform(
     params->IMAGE_WIDTH = IMAGE_WIDTH;
     params->num_rows = worker_quotient;
     params->start_row = total_assigned_rows;
-    thread_params_refs[i] = params;
     total_assigned_rows += worker_quotient;
-  }
-
-  struct timespec start, end;
-
-  timespec_get(&start, TIME_UTC);
-
-  for (size_t i = 0; i < NUM_THREADS; i++) {
-    (void)pthread_create(&thread_ids[i], NULL, transform_rows, thread_params_refs[i]);
-  }
-
-  for (size_t i = 0; i < NUM_THREADS; i++) {
-    (void)pthread_join(thread_ids[i], NULL);
+    transform_rows(params);
   }
 
   timespec_get(&end, TIME_UTC);
@@ -266,6 +257,8 @@ int transform(
 }
 
 int main() {
+  omp_set_num_threads(NUM_THREADS);
+
   return transform(
     INPUT_IMAGE_FILENAME,
     OUTPUT_IMAGE_FILENAME,
