@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <jpeglib.h>
-#include <omp.h>
 #include <math.h>
+#include <omp.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include "config.h"
