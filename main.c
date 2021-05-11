@@ -213,9 +213,9 @@ int transform(
 
   unsigned long total_assigned_rows = 0U;
 
-  struct timespec start, end;
+  struct timespec start_time, end;
 
-  timespec_get(&start, TIME_UTC);
+  timespec_get(&start_time, TIME_UTC);
 
   #pragma omp parallel for
   for (size_t i = 0; i < NUM_THREADS; i++) {
@@ -234,7 +234,7 @@ int transform(
 
   timespec_get(&end, TIME_UTC);
 
-  unsigned long int time_in_nano_seconds = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+  unsigned long int time_in_nano_seconds = (end.tv_sec - start_time.tv_sec) * 1e9 + (end.tv_nsec - start_time.tv_nsec);
   printf("total:%lu", time_in_nano_seconds);
 
   while (compressor.next_scanline < compressor.image_height) {
