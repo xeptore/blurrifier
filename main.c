@@ -106,7 +106,10 @@ struct transform_row_params {
   unsigned short num_rows;
 };
 
-void copy_kernel(double destination[KERNEL_HEIGHT][KERNEL_WIDTH], const double source[KERNEL_HEIGHT][KERNEL_WIDTH]) {
+void copy_kernel(
+  double destination[KERNEL_HEIGHT][KERNEL_WIDTH],
+  const double source[KERNEL_HEIGHT][KERNEL_WIDTH]
+) {
   for (size_t i = 0; i < KERNEL_HEIGHT; i++) {
     for (size_t j = 0; j < KERNEL_WIDTH; j++) {
       destination[i][j] = source[i][j];
